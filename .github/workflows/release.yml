@@ -1,0 +1,55 @@
+name: Release portable zip
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Build with PyInstaller
+        run: |
+          python -m PyInstaller --noconfirm --clean --onefile --windowed --name PZ_Companion app.py
+
+      - name: Stage portable package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path release_stage | Out-Null
+          Copy-Item dist\PZ_Companion.exe release_stage\
+          @"
+          PZ Companion - portable
+
+          1. Double-click PZ_Companion.exe
+          2. Press Start Server
+          3. Scan the PZ Map or PZ Pulse QR code on your phone
+          4. Phone and PC must be on the same Wi-Fi
+
+          If Windows Smart App Control blocks the exe, clone the repo and use run.bat with Python.
+          "@ | Set-Content -Path release_stage\README.txt -Encoding UTF8
+          Compress-Archive -Path release_stage\* -DestinationPath dist\PZ_Companion-portable.zip -Force
+
+      - name: Upload Release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/PZ_Companion-portable.zip
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
