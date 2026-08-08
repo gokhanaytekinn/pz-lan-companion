@@ -3,17 +3,18 @@
 Desktop companion for **Project Zomboid** mods **PZ Map** and **PZ Pulse**.  
 It broadcasts the mod web UIs and live Lua data over your local Wi‑Fi so you can open them on a phone or tablet via QR code.
 
+Built with **Electron** (Windows portable build).
+
 ## Download (recommended)
 
 1. Open the [**Releases**](../../releases) page
-2. Download **`PZ_Companion-portable.zip`**
-3. Extract anywhere
-4. Double‑click **`PZ_Companion.exe`**
-5. Press **Start Server** and scan a QR code
+2. Download **`PZ_Companion-portable.exe`** (or the `.zip`)
+3. Run **`PZ_Companion-portable.exe`** (or extract the zip and run **PZ Companion.exe**)
+4. Press **Start Server** and scan a QR code
 
-No installer. No Python required for the portable build.
+No installer. No Python required.
 
-> Windows may warn about an unsigned app (Smart App Control / SmartScreen). That is expected for community builds. If blocked, use the source / `run.bat` method below.
+> Windows may still warn about an unsigned app (SmartScreen / Smart App Control). Prefer **More info → Run anyway** when available. If Smart App Control hard-blocks the file, run from source with Node below.
 
 ## Requirements
 
@@ -34,42 +35,35 @@ No installer. No Python required for the portable build.
 
 ## Run from source
 
-```bat
-python -m pip install -r requirements.txt
-.\run.bat
-```
-
-Or:
+Requires [Node.js](https://nodejs.org/) 20+.
 
 ```bat
-python app.py
+npm install
+npm start
 ```
 
-CLI-only server (no GUI):
+## Build portable locally
 
 ```bat
-python main.py
+npm install
+npm run dist
 ```
 
-## Build portable zip locally
+Artifacts land in `release\`:
 
-```bat
-.\build.bat
-```
+- `PZ_Companion-portable.exe`
+- `PZ_Companion-portable.zip`
 
-Output:
-
-- `dist\PZ_Companion.exe`
-- `dist\PZ_Companion-portable.zip`
+Local builds unpack Electron under `%TEMP%\pz-lan-companion-release` first, then copy only the exe/zip into `release\` (avoids Cursor locking `app.asar` mid-build).
 
 ## Publishing a GitHub Release
 
 ```bash
-git tag v1.0.0
-git push origin v1.0.0
+git tag v1.0.1
+git push origin v1.0.1
 ```
 
-GitHub Actions builds `PZ_Companion-portable.zip` and attaches it to the release.
+GitHub Actions builds the portable Electron artifacts and attaches them to the release.
 
 ## Steam folder detection
 
@@ -103,7 +97,7 @@ There is no password; do not use on untrusted public Wi‑Fi.
 | Workshop not found | Use **Choose Steam Folder…** |
 | Phone cannot connect | Same Wi‑Fi, allow firewall port 8080, press Start |
 | Port in use | Stop another PZ Companion / process using 8080 |
-| Exe blocked | Use `.\run.bat` with Python, or allow the app in Windows Security |
+| Exe blocked | `npm start` from source, or allow the app in Windows Security |
 
 ## License
 

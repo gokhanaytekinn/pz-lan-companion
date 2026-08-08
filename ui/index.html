@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; script-src 'self'"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PZ Companion</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="header">
+      <div class="title-row">
+        <h1>PZ Companion</h1>
+        <span id="statusPill" class="pill stopped">STOPPED</span>
+      </div>
+      <p id="metaLabel" class="meta"></p>
+      <p id="pathLabel" class="meta path"></p>
+      <p class="warn">Same Wi‑Fi devices can read Map/Pulse data while the server is running.</p>
+    </header>
+
+    <div class="controls">
+      <button id="startBtn" class="btn primary" type="button">Start Server</button>
+      <button id="stopBtn" class="btn" type="button" disabled>Stop Server</button>
+      <button id="folderBtn" class="btn ghost" type="button">Choose Steam Folder…</button>
+    </div>
+
+    <main class="body">
+      <section class="panel" data-mod="map">
+        <h2>PZ Map</h2>
+        <img class="qr" alt="PZ Map QR" hidden />
+        <p class="qr-fallback">No QR</p>
+        <p class="mod-status"></p>
+        <textarea class="url-box" readonly></textarea>
+        <button class="btn copy-btn" type="button" data-copy="map">Copy URL</button>
+      </section>
+
+      <section class="panel" data-mod="pulse">
+        <h2>PZ Pulse</h2>
+        <img class="qr" alt="PZ Pulse QR" hidden />
+        <p class="qr-fallback">No QR</p>
+        <p class="mod-status"></p>
+        <textarea class="url-box" readonly></textarea>
+        <button class="btn copy-btn" type="button" data-copy="pulse">Copy URL</button>
+      </section>
+
+      <section class="panel devices">
+        <h2>Active devices</h2>
+        <p id="devicesHint" class="hint"></p>
+        <div id="devicesList" class="devices-list">
+          <p class="empty">No devices yet.<br />Start the server and open a QR on your phone.</p>
+        </div>
+      </section>
+    </main>
+
+    <script src="renderer.js"></script>
+  </body>
+</html>
