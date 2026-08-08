@@ -44,6 +44,28 @@ body {
   margin-bottom: 8px;
 }
 
+.title-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lang-label {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.lang-select {
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  padding: 0 10px;
+}
+
 h1 {
   margin: 0;
   font-size: 26px;
@@ -204,8 +226,18 @@ h2 {
   line-height: 1.4;
 }
 
-.copy-btn {
+.url-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
   margin-top: 12px;
+}
+
+.url-actions .btn {
+  width: 100%;
+}
+
+.copy-btn {
   align-self: stretch;
 }
 

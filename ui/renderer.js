@@ -8,20 +8,65 @@ const stopBtn = document.getElementById("stopBtn");
 const folderBtn = document.getElementById("folderBtn");
 const devicesHint = document.getElementById("devicesHint");
 const devicesList = document.getElementById("devicesList");
+const langSelect = document.getElementById("langSelect");
 
 /** @type {Record<string, string>} */
 let urls = {};
+/** @type {Record<string, boolean>} */
+let urlVisible = { map: false, pulse: false };
+/** @type {"en" | "tr"} */
+let lang = "en";
+/** @type {object | null} */
+let lastState = null;
+let isRunning = false;
+
+function t(key, vars) {
+  const table = window.I18N.STRINGS[lang] || window.I18N.STRINGS.en;
+  return window.I18N.format(table[key] || window.I18N.STRINGS.en[key] || key, vars);
+}
 
 function panel(modKey) {
   return document.querySelector(`.panel[data-mod="${modKey}"]`);
 }
 
+function applyStaticI18n() {
+  document.documentElement.lang = lang;
+  document.querySelectorAll("[data-i18n]").forEach((el) => {
+    el.textContent = t(el.getAttribute("data-i18n"));
+  });
+  document.querySelectorAll("[data-i18n-html]").forEach((el) => {
+    el.innerHTML = t(el.getAttribute("data-i18n-html"));
+  });
+  document.querySelectorAll(".toggle-url-btn").forEach((btn) => {
+    const key = btn.getAttribute("data-toggle-url");
+    btn.textContent = urlVisible[key] ? t("hideUrl") : t("showUrl");
+  });
+  setRunning(isRunning);
+}
+
 function setRunning(running) {
-  statusPill.textContent = running ? "RUNNING" : "STOPPED";
-  statusPill.classList.toggle("running", running);
-  statusPill.classList.toggle("stopped", !running);
-  startBtn.disabled = running;
-  stopBtn.disabled = !running;
+  isRunning = Boolean(running);
+  statusPill.textContent = isRunning ? t("statusRunning") : t("statusStopped");
+  statusPill.classList.toggle("running", isRunning);
+  statusPill.classList.toggle("stopped", !isRunning);
+  startBtn.disabled = isRunning;
+  stopBtn.disabled = !isRunning;
+}
+
+function refreshUrlBox(modKey) {
+  const el = panel(modKey);
+  if (!el) return;
+  const urlBox = el.querySelector(".url-box");
+  const toggle = el.querySelector(".toggle-url-btn");
+  const url = urls[modKey] || "";
+  if (!url) {
+    urlBox.value = t("urlMissing");
+    if (toggle) toggle.disabled = true;
+    return;
+  }
+  if (toggle) toggle.disabled = false;
+  urlBox.value = urlVisible[modKey] ? url : t("urlHidden");
+  if (toggle) toggle.textContent = urlVisible[modKey] ? t("hideUrl") : t("showUrl");
 }
 
 function renderMod(mod) {
@@ -30,7 +75,6 @@ function renderMod(mod) {
   const qr = el.querySelector(".qr");
   const fallback = el.querySelector(".qr-fallback");
   const status = el.querySelector(".mod-status");
-  const urlBox = el.querySelector(".url-box");
 
   urls[mod.key] = mod.url || "";
 
@@ -45,14 +89,14 @@ function renderMod(mod) {
   }
 
   const lines = [
-    `Web UI: ${mod.webOk ? "OK" : "MISSING"}`,
-    `Data: ${mod.dataOk ? "OK" : "MISSING (start game with mod)"}`,
+    mod.webOk ? t("webOk") : t("webMissing"),
+    mod.dataOk ? t("dataOk") : t("dataMissing"),
   ];
   status.textContent = lines.join("\n");
   status.classList.toggle("ok", mod.webOk);
   status.classList.toggle("bad", !mod.webOk);
 
-  urlBox.value = mod.url || "Mod web UI not found.";
+  refreshUrlBox(mod.key);
 }
 
 function pathHint(p) {
@@ -63,38 +107,41 @@ function pathHint(p) {
 }
 
 function renderDevices(rows, activeSeconds) {
-  devicesHint.textContent = `Listening clients (active ≤ ${Math.trunc(activeSeconds)}s)`;
+  devicesHint.textContent = t("devicesHint", { seconds: Math.trunc(activeSeconds) });
   devicesList.innerHTML = "";
   if (!rows || !rows.length) {
     const empty = document.createElement("p");
     empty.className = "empty";
-    empty.innerHTML = "No devices yet.<br />Start the server and open a QR on your phone.";
+    empty.innerHTML = t("devicesEmpty");
     devicesList.appendChild(empty);
     return;
   }
   for (const row of rows) {
     const age = Math.trunc(row.ageSeconds);
-    let ageText = "just now";
-    if (age >= 60) ageText = `${Math.floor(age / 60)}m ago`;
-    else if (age >= 1) ageText = `${age}s ago`;
-    const state = row.active ? "ACTIVE" : "idle";
+    let ageText = t("justNow");
+    if (age >= 60) ageText = t("minutesAgo", { n: Math.floor(age / 60) });
+    else if (age >= 1) ageText = t("secondsAgo", { n: age });
+    const state = row.active ? t("active") : t("idle");
     const div = document.createElement("div");
     div.className = `device${row.active ? " active" : ""}`;
-    div.textContent =
-      `${row.ip}  ·  ${state}  ·  ${ageText}\n` +
-      `${pathHint(row.lastPath)}  ·  ${row.requestCount} req`;
+    div.textContent = `${row.ip}  ·  ${state}  ·  ${ageText}\n${pathHint(row.lastPath)}`;
     devicesList.appendChild(div);
   }
 }
 
 function applyState(state) {
   if (!state) return;
+  lastState = state;
   setRunning(Boolean(state.running));
-  metaLabel.textContent = `IP ${state.localIp}   ·   Port ${state.port}   ·   Profile ${state.profile}`;
+  metaLabel.textContent = t("meta", {
+    ip: state.localIp,
+    port: state.port,
+    profile: state.profile,
+  });
   if (state.paths && state.paths.workshopRoot) {
-    pathLabel.textContent = `Workshop: ${state.paths.workshopRoot}`;
+    pathLabel.textContent = t("workshop", { path: state.paths.workshopRoot });
   } else {
-    pathLabel.textContent = "Workshop: not found — choose your Steam folder";
+    pathLabel.textContent = t("workshopMissing");
   }
   for (const mod of state.mods || []) renderMod(mod);
   renderDevices(state.devices || [], state.activeSeconds || 15);
@@ -108,11 +155,7 @@ async function refresh() {
 
 async function maybePromptPaths(state) {
   if (state.paths && state.paths.ready) return;
-  const ok = window.confirm(
-    "Could not find PZ Map / PZ Pulse workshop files automatically.\n\n" +
-      "Click OK to select your Steam steamapps folder\n" +
-      "(or the folder that contains workshop\\content\\108600)."
-  );
+  const ok = window.confirm(t("promptPaths"));
   if (ok) await chooseFolder();
 }
 
@@ -120,22 +163,32 @@ async function chooseFolder() {
   const result = await window.pz.chooseFolder();
   if (result.cancelled) return;
   if (!result.ok) {
-    window.alert(result.error || "Mods not found");
+    window.alert(result.errorKey ? t(result.errorKey) : result.error || t("modsNotFound"));
     return;
   }
   applyState(result.state);
   if (result.partial) {
-    window.alert("Found some mods but missing:\n- " + result.missing.join("\n- "));
+    window.alert(t("partialMatch", { list: (result.missing || []).join("\n- ") }));
   } else {
-    window.alert("Mod folders found and saved.");
+    window.alert(t("pathsSaved"));
   }
+}
+
+function setLanguage(next) {
+  lang = next === "tr" ? "tr" : "en";
+  langSelect.value = lang;
+  applyStaticI18n();
+  if (lastState) applyState(lastState);
 }
 
 startBtn.addEventListener("click", async () => {
   const result = await window.pz.startServer();
   if (!result.ok) {
-    window.alert(result.error || "Cannot start");
-    if ((result.error || "").includes("Choose your Steam")) {
+    let message = result.error || t("cannotStart");
+    if (result.errorKey === "cannotStartPaths") message = t("cannotStartPaths");
+    if (result.errorKey === "portInUse") message = t("portInUse", { port: result.port || 8080 });
+    window.alert(message);
+    if (result.errorKey === "cannotStartPaths") {
       await maybePromptPaths(await window.pz.getState());
     }
     return;
@@ -152,6 +205,11 @@ folderBtn.addEventListener("click", () => {
   chooseFolder();
 });
 
+langSelect.addEventListener("change", async () => {
+  setLanguage(langSelect.value);
+  await window.pz.setLanguage(lang);
+});
+
 document.querySelectorAll(".copy-btn").forEach((btn) => {
   btn.addEventListener("click", async () => {
     const key = btn.getAttribute("data-copy");
@@ -160,7 +218,6 @@ document.querySelectorAll(".copy-btn").forEach((btn) => {
     try {
       await navigator.clipboard.writeText(url);
     } catch {
-      // fallback
       const ta = document.createElement("textarea");
       ta.value = url;
       document.body.appendChild(ta);
@@ -171,7 +228,17 @@ document.querySelectorAll(".copy-btn").forEach((btn) => {
   });
 });
 
+document.querySelectorAll(".toggle-url-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const key = btn.getAttribute("data-toggle-url");
+    urlVisible[key] = !urlVisible[key];
+    refreshUrlBox(key);
+  });
+});
+
 (async () => {
+  const prefs = await window.pz.getLanguagePrefs();
+  setLanguage(prefs.language || "en");
   const state = await refresh();
   await maybePromptPaths(state);
   setInterval(async () => {

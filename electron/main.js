@@ -12,6 +12,8 @@ const {
   loadResolvedPaths,
   resolveFromUserFolder,
   persistManualPath,
+  getSavedLanguage,
+  persistLanguage,
   buildModUrl,
   isReady,
   serializePaths,
@@ -93,18 +95,38 @@ async function attachQr(state) {
 
 ipcMain.handle("get-state", async () => attachQr(buildState()));
 
+function resolveLanguage() {
+  const saved = getSavedLanguage();
+  if (saved) return saved;
+  const locale = String(app.getLocale() || "").toLowerCase();
+  if (locale.startsWith("tr")) return "tr";
+  if (locale.startsWith("en")) return "en";
+  return "en";
+}
+
+ipcMain.handle("get-language-prefs", () => ({
+  language: resolveLanguage(),
+  systemLocale: app.getLocale(),
+}));
+
+ipcMain.handle("set-language", (_event, language) => {
+  const next = language === "tr" ? "tr" : "en";
+  persistLanguage(next);
+  return { language: next };
+});
+
 ipcMain.handle("start-server", async () => {
   if (!isReady(pathsState)) {
-    return { ok: false, error: "Both PZ Map and PZ Pulse web UIs are required. Choose your Steam folder first." };
+    return { ok: false, errorKey: "cannotStartPaths" };
   }
   try {
-    controller.start();
+    await controller.start();
     return { ok: true, state: await attachQr(buildState()) };
   } catch (err) {
-    const message = err && err.code === "EADDRINUSE"
-      ? `Could not bind port ${PORT}. Is another instance running?`
-      : (err && err.message) || String(err);
-    return { ok: false, error: message };
+    if (err && err.code === "EADDRINUSE") {
+      return { ok: false, errorKey: "portInUse", port: PORT };
+    }
+    return { ok: false, error: (err && err.message) || String(err) };
   }
 });
 
@@ -115,7 +137,7 @@ ipcMain.handle("stop-server", async () => {
 
 ipcMain.handle("choose-folder", async () => {
   const result = await dialog.showOpenDialog(mainWindow, {
-    title: "Select Steam steamapps (or workshop content 108600) folder",
+    title: "Steam",
     properties: ["openDirectory"],
   });
   if (result.canceled || !result.filePaths.length) {
@@ -124,11 +146,7 @@ ipcMain.handle("choose-folder", async () => {
   const selected = result.filePaths[0];
   const resolved = resolveFromUserFolder(selected);
   if (!Object.keys(resolved.webDirs).length) {
-    return {
-      ok: false,
-      error:
-        "That folder does not contain PZ Map / PZ Pulse web UI files. Select your Steam steamapps directory and try again.",
-    };
+    return { ok: false, errorKey: "modsNotFound" };
   }
   persistManualPath(selected);
   pathsState = resolved;

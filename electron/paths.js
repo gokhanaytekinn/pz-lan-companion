@@ -338,6 +338,20 @@ function persistManualPath(folder) {
   saveConfig(cfg);
 }
 
+function getSavedLanguage() {
+  const cfg = loadConfig();
+  const lang = cfg.language;
+  if (lang === "tr" || lang === "en") return lang;
+  return null;
+}
+
+function persistLanguage(lang) {
+  if (lang !== "tr" && lang !== "en") return;
+  const cfg = loadConfig();
+  cfg.language = lang;
+  saveConfig(cfg);
+}
+
 function buildModUrl(localIp, mod, port) {
   return (
     `http://${localIp}:${port}${mod.urlMod}index.html` +
@@ -364,6 +378,8 @@ module.exports = {
   loadResolvedPaths,
   resolveFromUserFolder,
   persistManualPath,
+  getSavedLanguage,
+  persistLanguage,
   buildModUrl,
   isReady,
   mountsFrom,

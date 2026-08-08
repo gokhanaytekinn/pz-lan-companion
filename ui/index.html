@@ -14,47 +14,61 @@
     <header class="header">
       <div class="title-row">
         <h1>PZ Companion</h1>
-        <span id="statusPill" class="pill stopped">STOPPED</span>
+        <div class="title-actions">
+          <label class="lang-label" for="langSelect" data-i18n="language">Language</label>
+          <select id="langSelect" class="lang-select" aria-label="Language">
+            <option value="en">English</option>
+            <option value="tr">Türkçe</option>
+          </select>
+          <span id="statusPill" class="pill stopped" data-i18n-running="statusRunning" data-i18n-stopped="statusStopped">STOPPED</span>
+        </div>
       </div>
       <p id="metaLabel" class="meta"></p>
       <p id="pathLabel" class="meta path"></p>
-      <p class="warn">Same Wi‑Fi devices can read Map/Pulse data while the server is running.</p>
+      <p class="warn" data-i18n="warn">Same Wi‑Fi devices can read Map/Pulse data while the server is running.</p>
     </header>
 
     <div class="controls">
-      <button id="startBtn" class="btn primary" type="button">Start Server</button>
-      <button id="stopBtn" class="btn" type="button" disabled>Stop Server</button>
-      <button id="folderBtn" class="btn ghost" type="button">Choose Steam Folder…</button>
+      <button id="startBtn" class="btn primary" type="button" data-i18n="startServer">Start Server</button>
+      <button id="stopBtn" class="btn" type="button" disabled data-i18n="stopServer">Stop Server</button>
+      <button id="folderBtn" class="btn ghost" type="button" data-i18n="chooseFolder">Choose Steam Folder…</button>
     </div>
 
     <main class="body">
       <section class="panel" data-mod="map">
         <h2>PZ Map</h2>
         <img class="qr" alt="PZ Map QR" hidden />
-        <p class="qr-fallback">No QR</p>
+        <p class="qr-fallback" data-i18n="noQr">No QR</p>
         <p class="mod-status"></p>
         <textarea class="url-box" readonly></textarea>
-        <button class="btn copy-btn" type="button" data-copy="map">Copy URL</button>
+        <div class="url-actions">
+          <button class="btn toggle-url-btn" type="button" data-toggle-url="map">Show</button>
+          <button class="btn copy-btn" type="button" data-copy="map" data-i18n="copyUrl">Copy URL</button>
+        </div>
       </section>
 
       <section class="panel" data-mod="pulse">
         <h2>PZ Pulse</h2>
         <img class="qr" alt="PZ Pulse QR" hidden />
-        <p class="qr-fallback">No QR</p>
+        <p class="qr-fallback" data-i18n="noQr">No QR</p>
         <p class="mod-status"></p>
         <textarea class="url-box" readonly></textarea>
-        <button class="btn copy-btn" type="button" data-copy="pulse">Copy URL</button>
+        <div class="url-actions">
+          <button class="btn toggle-url-btn" type="button" data-toggle-url="pulse">Show</button>
+          <button class="btn copy-btn" type="button" data-copy="pulse" data-i18n="copyUrl">Copy URL</button>
+        </div>
       </section>
 
       <section class="panel devices">
-        <h2>Active devices</h2>
+        <h2 data-i18n="activeDevices">Active devices</h2>
         <p id="devicesHint" class="hint"></p>
         <div id="devicesList" class="devices-list">
-          <p class="empty">No devices yet.<br />Start the server and open a QR on your phone.</p>
+          <p class="empty" data-i18n-html="devicesEmpty">No devices yet.<br />Start the server and open a QR on your phone.</p>
         </div>
       </section>
     </main>
 
+    <script src="i18n.js"></script>
     <script src="renderer.js"></script>
   </body>
 </html>
