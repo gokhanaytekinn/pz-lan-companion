@@ -1,7 +1,7 @@
 # Dependencies
 node_modules/
 
-# Build / packager output
+# Build leftovers (legacy)
 dist/
 release/
 out/

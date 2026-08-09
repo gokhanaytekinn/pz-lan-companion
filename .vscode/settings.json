@@ -1,17 +1,11 @@
 {
   "files.watcherExclude": {
-    "**/release/**": true,
     "**/dist/**": true,
     "**/node_modules/**": true,
     "**/build/**": true
   },
   "search.exclude": {
-    "**/release": true,
     "**/dist": true,
     "**/node_modules": true
-  },
-  "files.exclude": {
-    "**/release/win-unpacked": true,
-    "**/dist/win-unpacked": true
   }
 }

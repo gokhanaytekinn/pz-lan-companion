@@ -1,19 +1,21 @@
 "use strict";
 
+const fs = require("fs");
 const path = require("path");
 const { app, BrowserWindow, dialog, ipcMain, shell } = require("electron");
 const QRCode = require("qrcode");
 const {
-  PORT,
   ACTIVE_SECONDS,
   MODS,
   getProfileFolderName,
-  getLocalIPv4,
   loadResolvedPaths,
   resolveFromUserFolder,
   persistManualPath,
   getSavedLanguage,
   persistLanguage,
+  loadAppSettings,
+  persistAppSettings,
+  setDeviceNickname,
   buildModUrl,
   isReady,
   serializePaths,
@@ -23,17 +25,26 @@ const { ClientActivityTracker, ServerController } = require("./server");
 /** @type {BrowserWindow | null} */
 let mainWindow = null;
 let pathsState = loadResolvedPaths();
+let settings = loadAppSettings();
 const tracker = new ClientActivityTracker();
-const controller = new ServerController(pathsState, PORT, tracker);
+const controller = new ServerController(
+  pathsState,
+  settings.port,
+  tracker,
+  settings.enabledMods
+);
+
+const ICON_PATH = path.join(__dirname, "..", "assets", "icon.png");
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 980,
-    height: 720,
-    minWidth: 900,
-    minHeight: 640,
+    width: 1040,
+    height: 760,
+    minWidth: 920,
+    minHeight: 660,
     backgroundColor: "#141816",
     title: "PZ Companion",
+    icon: fs.existsSync(ICON_PATH) ? ICON_PATH : undefined,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -48,17 +59,30 @@ function createWindow() {
   });
 }
 
+function deviceRows() {
+  const nicknames = settings.deviceNicknames || {};
+  return tracker.snapshot().map((row) => ({
+    ...row,
+    nickname: nicknames[row.ip] || "",
+  }));
+}
+
 function buildState() {
-  const localIp = getLocalIPv4();
+  settings = loadAppSettings();
+  controller.setPort(settings.port);
+  controller.setEnabledMods(settings.enabledMods);
+
   const mods = MODS.map((mod) => {
+    const enabled = settings.enabledMods[mod.key] !== false;
     const web = pathsState.webDirs[mod.key];
     const data = pathsState.dataDirs[mod.key];
-    const webOk = Boolean(web && require("fs").existsSync(path.join(web, "index.html")));
-    const dataOk = Boolean(data && require("fs").existsSync(data) && require("fs").statSync(data).isDirectory());
-    const url = web ? buildModUrl(localIp, mod, PORT) : "";
+    const webOk = Boolean(web && fs.existsSync(path.join(web, "index.html")));
+    const dataOk = Boolean(data && fs.existsSync(data) && fs.statSync(data).isDirectory());
+    const url = enabled && web ? buildModUrl(settings.selectedIp, mod, settings.port) : "";
     return {
       key: mod.key,
       name: mod.name,
+      enabled,
       url,
       webOk,
       dataOk,
@@ -66,19 +90,25 @@ function buildState() {
   });
 
   return {
-    localIp,
-    port: PORT,
+    localIp: settings.selectedIp,
+    availableIps: settings.availableIps,
+    port: settings.port,
+    enabledMods: settings.enabledMods,
     profile: getProfileFolderName(),
     activeSeconds: ACTIVE_SECONDS,
     running: controller.running,
-    paths: serializePaths(pathsState),
+    paths: serializePaths(pathsState, settings.enabledMods),
     mods,
-    devices: tracker.snapshot(),
+    devices: deviceRows(),
   };
 }
 
 async function attachQr(state) {
   for (const mod of state.mods) {
+    if (!mod.enabled) {
+      mod.qrDataUrl = "";
+      continue;
+    }
     if (!mod.url) {
       mod.qrDataUrl = "";
       continue;
@@ -93,8 +123,6 @@ async function attachQr(state) {
   return state;
 }
 
-ipcMain.handle("get-state", async () => attachQr(buildState()));
-
 function resolveLanguage() {
   const saved = getSavedLanguage();
   if (saved) return saved;
@@ -103,6 +131,8 @@ function resolveLanguage() {
   if (locale.startsWith("en")) return "en";
   return "en";
 }
+
+ipcMain.handle("get-state", async () => attachQr(buildState()));
 
 ipcMain.handle("get-language-prefs", () => ({
   language: resolveLanguage(),
@@ -115,8 +145,54 @@ ipcMain.handle("set-language", (_event, language) => {
   return { language: next };
 });
 
+ipcMain.handle("update-settings", async (_event, patch) => {
+  const prevPort = settings.port;
+  const prevMods = JSON.stringify(settings.enabledMods);
+  settings = persistAppSettings(patch || {});
+  controller.setPort(settings.port);
+  controller.setEnabledMods(settings.enabledMods);
+
+  const portChanged = prevPort !== settings.port;
+  const modsChanged = prevMods !== JSON.stringify(settings.enabledMods);
+  if (controller.running && (portChanged || modsChanged)) {
+    try {
+      await controller.restart();
+    } catch (err) {
+      if (err && err.code === "EADDRINUSE") {
+        return {
+          ok: false,
+          errorKey: "portInUse",
+          port: settings.port,
+          state: await attachQr(buildState()),
+        };
+      }
+      return {
+        ok: false,
+        error: (err && err.message) || String(err),
+        state: await attachQr(buildState()),
+      };
+    }
+  }
+
+  return { ok: true, state: await attachQr(buildState()) };
+});
+
+ipcMain.handle("set-device-nickname", async (_event, payload) => {
+  const ip = payload && payload.ip;
+  if (!ip) return { ok: false, errorKey: "cannotStart" };
+  settings.deviceNicknames = setDeviceNickname(ip, payload.nickname || "");
+  return { ok: true, state: await attachQr(buildState()) };
+});
+
 ipcMain.handle("start-server", async () => {
-  if (!isReady(pathsState)) {
+  settings = loadAppSettings();
+  controller.setPort(settings.port);
+  controller.setEnabledMods(settings.enabledMods);
+
+  if (!settings.enabledMods.map && !settings.enabledMods.pulse) {
+    return { ok: false, errorKey: "noModsEnabled" };
+  }
+  if (!isReady(pathsState, settings.enabledMods)) {
     return { ok: false, errorKey: "cannotStartPaths" };
   }
   try {
@@ -124,7 +200,7 @@ ipcMain.handle("start-server", async () => {
     return { ok: true, state: await attachQr(buildState()) };
   } catch (err) {
     if (err && err.code === "EADDRINUSE") {
-      return { ok: false, errorKey: "portInUse", port: PORT };
+      return { ok: false, errorKey: "portInUse", port: settings.port };
     }
     return { ok: false, error: (err && err.message) || String(err) };
   }
@@ -151,7 +227,10 @@ ipcMain.handle("choose-folder", async () => {
   persistManualPath(selected);
   pathsState = resolved;
   await controller.updatePaths(resolved);
-  const missing = MODS.filter((m) => !resolved.webDirs[m.key]).map((m) => m.name);
+  settings = loadAppSettings();
+  const missing = MODS.filter(
+    (m) => settings.enabledMods[m.key] !== false && !resolved.webDirs[m.key]
+  ).map((m) => m.name);
   return {
     ok: true,
     partial: missing.length > 0,
@@ -160,15 +239,22 @@ ipcMain.handle("choose-folder", async () => {
   };
 });
 
-ipcMain.handle("get-devices", () => tracker.snapshot());
-
-ipcMain.handle("poll-status", () => ({
-  running: controller.running,
-  devices: tracker.snapshot(),
-  activeSeconds: ACTIVE_SECONDS,
-}));
+ipcMain.handle("poll-status", () => {
+  settings = loadAppSettings();
+  return {
+    running: controller.running,
+    devices: deviceRows(),
+    activeSeconds: ACTIVE_SECONDS,
+    availableIps: settings.availableIps,
+    selectedIp: settings.selectedIp,
+    port: settings.port,
+  };
+});
 
 app.whenReady().then(() => {
+  if (process.platform === "win32" && fs.existsSync(ICON_PATH)) {
+    app.setAppUserModelId("com.pzcompanion.app");
+  }
   createWindow();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -192,7 +278,6 @@ app.on("before-quit", () => {
   }
 });
 
-// Open external links in browser if any
 app.on("web-contents-created", (_event, contents) => {
   contents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);

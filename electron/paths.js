@@ -41,16 +41,7 @@ function getProfileFolderName() {
 }
 
 function getLocalIPv4() {
-  const candidates = [];
-  const nets = os.networkInterfaces();
-  for (const entries of Object.values(nets)) {
-    if (!entries) continue;
-    for (const entry of entries) {
-      if (entry.family === "IPv4" && !entry.internal) {
-        candidates.push(entry.address);
-      }
-    }
-  }
+  const candidates = listLocalIPv4s();
   if (!candidates.length) return "127.0.0.1";
 
   function score(ip) {
@@ -68,6 +59,21 @@ function getLocalIPv4() {
     const sb = score(b);
     return sa[0] - sb[0] || sa[1].localeCompare(sb[1]);
   })[0];
+}
+
+function listLocalIPv4s() {
+  const candidates = [];
+  const nets = os.networkInterfaces();
+  for (const entries of Object.values(nets)) {
+    if (!entries) continue;
+    for (const entry of entries) {
+      const family = entry.family === 4 ? "IPv4" : entry.family;
+      if (family === "IPv4" && !entry.internal) {
+        candidates.push(entry.address);
+      }
+    }
+  }
+  return [...new Set(candidates)];
 }
 
 function steamPathFromRegistry() {
@@ -220,13 +226,16 @@ function emptyResolved() {
   };
 }
 
-function isReady(resolved) {
-  return MODS.every((mod) => Boolean(resolved.webDirs[mod.key]));
+function isReady(resolved, enabledMods = null) {
+  const enabled = MODS.filter((mod) => !enabledMods || enabledMods[mod.key] !== false);
+  if (!enabled.length) return false;
+  return enabled.every((mod) => Boolean(resolved.webDirs[mod.key]));
 }
 
-function mountsFrom(resolved) {
+function mountsFrom(resolved, enabledMods = null) {
   const out = {};
   for (const mod of MODS) {
+    if (enabledMods && enabledMods[mod.key] === false) continue;
     const web = resolved.webDirs[mod.key];
     const data = resolved.dataDirs[mod.key];
     if (web) out[mod.urlMod.replace(/\/$/, "")] = web;
@@ -352,6 +361,58 @@ function persistLanguage(lang) {
   saveConfig(cfg);
 }
 
+function normalizePort(value) {
+  const n = Number(value);
+  if (!Number.isInteger(n) || n < 1 || n > 65535) return 8080;
+  return n;
+}
+
+function loadAppSettings() {
+  const cfg = loadConfig();
+  const ips = listLocalIPv4s();
+  const preferred = typeof cfg.selectedIp === "string" ? cfg.selectedIp : null;
+  const selectedIp = preferred && ips.includes(preferred) ? preferred : getLocalIPv4();
+  return {
+    port: normalizePort(cfg.port),
+    selectedIp,
+    availableIps: ips.length ? ips : [selectedIp || "127.0.0.1"],
+    enabledMods: {
+      map: cfg.enabledMods?.map !== false,
+      pulse: cfg.enabledMods?.pulse !== false,
+    },
+    deviceNicknames:
+      cfg.deviceNicknames && typeof cfg.deviceNicknames === "object" ? { ...cfg.deviceNicknames } : {},
+  };
+}
+
+function persistAppSettings(patch) {
+  const cfg = loadConfig();
+  if (patch.port !== undefined) cfg.port = normalizePort(patch.port);
+  if (patch.selectedIp !== undefined) cfg.selectedIp = patch.selectedIp;
+  if (patch.enabledMods !== undefined) {
+    cfg.enabledMods = {
+      map: patch.enabledMods.map !== false,
+      pulse: patch.enabledMods.pulse !== false,
+    };
+  }
+  if (patch.deviceNicknames !== undefined) {
+    cfg.deviceNicknames = { ...patch.deviceNicknames };
+  }
+  saveConfig(cfg);
+  return loadAppSettings();
+}
+
+function setDeviceNickname(ip, nickname) {
+  const cfg = loadConfig();
+  const nicknames = cfg.deviceNicknames && typeof cfg.deviceNicknames === "object" ? { ...cfg.deviceNicknames } : {};
+  const cleaned = String(nickname || "").trim();
+  if (!cleaned) delete nicknames[ip];
+  else nicknames[ip] = cleaned.slice(0, 40);
+  cfg.deviceNicknames = nicknames;
+  saveConfig(cfg);
+  return nicknames;
+}
+
 function buildModUrl(localIp, mod, port) {
   return (
     `http://${localIp}:${port}${mod.urlMod}index.html` +
@@ -359,27 +420,31 @@ function buildModUrl(localIp, mod, port) {
   );
 }
 
-function serializePaths(resolved) {
+function serializePaths(resolved, enabledMods = null) {
   return {
     steamRoot: resolved.steamRoot,
     workshopRoot: resolved.workshopRoot,
     webDirs: { ...resolved.webDirs },
     dataDirs: { ...resolved.dataDirs },
-    ready: isReady(resolved),
+    ready: isReady(resolved, enabledMods),
   };
 }
 
 module.exports = {
-  PORT: 8080,
+  DEFAULT_PORT: 8080,
   ACTIVE_SECONDS: 15,
   MODS,
   getProfileFolderName,
   getLocalIPv4,
+  listLocalIPv4s,
   loadResolvedPaths,
   resolveFromUserFolder,
   persistManualPath,
   getSavedLanguage,
   persistLanguage,
+  loadAppSettings,
+  persistAppSettings,
+  setDeviceNickname,
   buildModUrl,
   isReady,
   mountsFrom,

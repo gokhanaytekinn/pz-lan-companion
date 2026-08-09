@@ -99,15 +99,24 @@ class ClientActivityTracker {
 }
 
 class ServerController {
-  constructor(paths, port, tracker) {
+  constructor(paths, port, tracker, enabledMods) {
     this.paths = paths;
     this.port = port;
+    this.enabledMods = enabledMods || { map: true, pulse: true };
     this.tracker = tracker || new ClientActivityTracker();
     this.server = null;
   }
 
   get running() {
     return this.server !== null;
+  }
+
+  setPort(port) {
+    this.port = port;
+  }
+
+  setEnabledMods(enabledMods) {
+    this.enabledMods = enabledMods;
   }
 
   updatePaths(paths) {
@@ -118,9 +127,15 @@ class ServerController {
     return Promise.resolve();
   }
 
+  async restart() {
+    const wasRunning = this.running;
+    if (wasRunning) this.stop();
+    if (wasRunning) await this.start();
+  }
+
   start() {
     if (this.server) return Promise.resolve();
-    const mounts = mountsFrom(this.paths);
+    const mounts = mountsFrom(this.paths, this.enabledMods);
     if (!Object.keys(mounts).length) {
       return Promise.reject(new Error("No mountable mod paths resolved."));
     }

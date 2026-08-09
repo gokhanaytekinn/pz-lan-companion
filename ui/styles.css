@@ -44,6 +44,19 @@ body {
   margin-bottom: 8px;
 }
 
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: block;
+}
+
 .title-actions {
   display: flex;
   align-items: center;
@@ -122,6 +135,82 @@ h2 {
 
 .controls .ghost {
   margin-left: auto;
+}
+
+.settings {
+  display: grid;
+  grid-template-columns: 1.2fr 0.7fr 1.4fr;
+  gap: 12px;
+  padding: 4px 20px 10px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.field-control {
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  padding: 0 10px;
+}
+
+.mod-toggles {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  min-height: 36px;
+}
+
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.panel-head h2 {
+  margin: 0;
+}
+
+.mod-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--border);
+  color: var(--muted);
+}
+
+.mod-badge.on {
+  background: rgba(111, 175, 122, 0.2);
+  color: var(--ok);
+}
+
+.mod-badge.off {
+  background: rgba(184, 92, 74, 0.18);
+  color: var(--danger);
+}
+
+.panel.disabled-mod {
+  opacity: 0.72;
 }
 
 .btn {
@@ -265,13 +354,45 @@ h2 {
 
 .device {
   margin: 0 0 10px;
-  padding: 6px 8px;
+  padding: 8px;
   font-size: 12px;
   line-height: 1.45;
   color: var(--muted);
-  white-space: pre-line;
 }
 
 .device.active {
   color: var(--ok);
+}
+
+.device-title {
+  font-weight: 600;
+}
+
+.device-meta {
+  margin-top: 2px;
+  color: var(--muted);
+}
+
+.device-nick {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.device-nick input {
+  height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  padding: 0 8px;
+}
+
+.device-nick .nick-save {
+  height: 30px;
+  padding: 0 10px;
+  font-size: 12px;
 }

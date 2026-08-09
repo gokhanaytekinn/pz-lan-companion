@@ -1,48 +1,17 @@
 {
   "name": "pz-lan-companion",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "Desktop companion for Project Zomboid PZ Map and PZ Pulse mods",
   "main": "electron/main.js",
   "author": "PZ Companion",
   "license": "MIT",
   "scripts": {
-    "start": "electron .",
-    "dist": "node scripts/dist.js",
-    "dist:dir": "electron-builder --win dir --config.directories.output=release"
+    "start": "electron ."
   },
   "dependencies": {
     "qrcode": "^1.5.4"
   },
   "devDependencies": {
-    "electron": "^37.2.0",
-    "electron-builder": "^26.0.12"
-  },
-  "build": {
-    "appId": "com.pzcompanion.app",
-    "productName": "PZ Companion",
-    "directories": {
-      "output": "release"
-    },
-    "files": [
-      "electron/**/*",
-      "ui/**/*",
-      "package.json"
-    ],
-    "win": {
-      "target": [
-        {
-          "target": "portable",
-          "arch": ["x64"]
-        },
-        {
-          "target": "zip",
-          "arch": ["x64"]
-        }
-      ],
-      "artifactName": "PZ_Companion-portable.${ext}"
-    },
-    "portable": {
-      "artifactName": "PZ_Companion-portable.exe"
-    }
+    "electron": "^37.2.0"
   }
 }

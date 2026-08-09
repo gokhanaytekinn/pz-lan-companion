@@ -9,6 +9,10 @@ const folderBtn = document.getElementById("folderBtn");
 const devicesHint = document.getElementById("devicesHint");
 const devicesList = document.getElementById("devicesList");
 const langSelect = document.getElementById("langSelect");
+const ipSelect = document.getElementById("ipSelect");
+const portInput = document.getElementById("portInput");
+const modMap = document.getElementById("modMap");
+const modPulse = document.getElementById("modPulse");
 
 /** @type {Record<string, string>} */
 let urls = {};
@@ -19,6 +23,7 @@ let lang = "en";
 /** @type {object | null} */
 let lastState = null;
 let isRunning = false;
+let applyingSettings = false;
 
 function t(key, vars) {
   const table = window.I18N.STRINGS[lang] || window.I18N.STRINGS.en;
@@ -53,18 +58,38 @@ function setRunning(running) {
   stopBtn.disabled = !isRunning;
 }
 
+function syncSettingsControls(state) {
+  applyingSettings = true;
+  const ips = state.availableIps || [];
+  ipSelect.innerHTML = "";
+  for (const ip of ips) {
+    const opt = document.createElement("option");
+    opt.value = ip;
+    opt.textContent = ip;
+    ipSelect.appendChild(opt);
+  }
+  ipSelect.value = state.localIp || ips[0] || "";
+  portInput.value = String(state.port || 8080);
+  modMap.checked = state.enabledMods?.map !== false;
+  modPulse.checked = state.enabledMods?.pulse !== false;
+  applyingSettings = false;
+}
+
 function refreshUrlBox(modKey) {
   const el = panel(modKey);
   if (!el) return;
   const urlBox = el.querySelector(".url-box");
   const toggle = el.querySelector(".toggle-url-btn");
+  const copy = el.querySelector(".copy-btn");
   const url = urls[modKey] || "";
   if (!url) {
     urlBox.value = t("urlMissing");
     if (toggle) toggle.disabled = true;
+    if (copy) copy.disabled = true;
     return;
   }
   if (toggle) toggle.disabled = false;
+  if (copy) copy.disabled = false;
   urlBox.value = urlVisible[modKey] ? url : t("urlHidden");
   if (toggle) toggle.textContent = urlVisible[modKey] ? t("hideUrl") : t("showUrl");
 }
@@ -75,10 +100,18 @@ function renderMod(mod) {
   const qr = el.querySelector(".qr");
   const fallback = el.querySelector(".qr-fallback");
   const status = el.querySelector(".mod-status");
+  const badge = el.querySelector(`[data-enabled-badge="${mod.key}"]`);
 
-  urls[mod.key] = mod.url || "";
+  el.classList.toggle("disabled-mod", !mod.enabled);
+  if (badge) {
+    badge.textContent = mod.enabled ? t("modOn") : t("modOff");
+    badge.classList.toggle("on", mod.enabled);
+    badge.classList.toggle("off", !mod.enabled);
+  }
 
-  if (mod.qrDataUrl) {
+  urls[mod.key] = mod.enabled ? mod.url || "" : "";
+
+  if (mod.enabled && mod.qrDataUrl) {
     qr.src = mod.qrDataUrl;
     qr.hidden = false;
     fallback.hidden = true;
@@ -86,15 +119,21 @@ function renderMod(mod) {
     qr.removeAttribute("src");
     qr.hidden = true;
     fallback.hidden = false;
+    fallback.textContent = mod.enabled ? t("noQr") : t("modDisabled");
   }
 
-  const lines = [
-    mod.webOk ? t("webOk") : t("webMissing"),
-    mod.dataOk ? t("dataOk") : t("dataMissing"),
-  ];
-  status.textContent = lines.join("\n");
-  status.classList.toggle("ok", mod.webOk);
-  status.classList.toggle("bad", !mod.webOk);
+  if (!mod.enabled) {
+    status.textContent = t("modDisabled");
+    status.classList.remove("ok", "bad");
+  } else {
+    const lines = [
+      mod.webOk ? t("webOk") : t("webMissing"),
+      mod.dataOk ? t("dataOk") : t("dataMissing"),
+    ];
+    status.textContent = lines.join("\n");
+    status.classList.toggle("ok", mod.webOk);
+    status.classList.toggle("bad", !mod.webOk);
+  }
 
   refreshUrlBox(mod.key);
 }
@@ -122,9 +161,40 @@ function renderDevices(rows, activeSeconds) {
     if (age >= 60) ageText = t("minutesAgo", { n: Math.floor(age / 60) });
     else if (age >= 1) ageText = t("secondsAgo", { n: age });
     const state = row.active ? t("active") : t("idle");
+
     const div = document.createElement("div");
     div.className = `device${row.active ? " active" : ""}`;
-    div.textContent = `${row.ip}  ·  ${state}  ·  ${ageText}\n${pathHint(row.lastPath)}`;
+
+    const title = document.createElement("div");
+    title.className = "device-title";
+    const label = row.nickname ? `${row.nickname} (${row.ip})` : row.ip;
+    title.textContent = `${label}  ·  ${state}  ·  ${ageText}`;
+
+    const meta = document.createElement("div");
+    meta.className = "device-meta";
+    meta.textContent = pathHint(row.lastPath);
+
+    const nickRow = document.createElement("div");
+    nickRow.className = "device-nick";
+    const input = document.createElement("input");
+    input.type = "text";
+    input.maxLength = 40;
+    input.value = row.nickname || "";
+    input.placeholder = t("nicknamePlaceholder");
+    const saveBtn = document.createElement("button");
+    saveBtn.type = "button";
+    saveBtn.className = "btn nick-save";
+    saveBtn.textContent = t("saveNickname");
+    saveBtn.addEventListener("click", async () => {
+      const result = await window.pz.setDeviceNickname(row.ip, input.value);
+      if (result.ok) applyState(result.state);
+    });
+    nickRow.appendChild(input);
+    nickRow.appendChild(saveBtn);
+
+    div.appendChild(title);
+    div.appendChild(meta);
+    div.appendChild(nickRow);
     devicesList.appendChild(div);
   }
 }
@@ -133,6 +203,7 @@ function applyState(state) {
   if (!state) return;
   lastState = state;
   setRunning(Boolean(state.running));
+  syncSettingsControls(state);
   metaLabel.textContent = t("meta", {
     ip: state.localIp,
     port: state.port,
@@ -181,11 +252,25 @@ function setLanguage(next) {
   if (lastState) applyState(lastState);
 }
 
+async function pushSettings(patch) {
+  if (applyingSettings) return;
+  const result = await window.pz.updateSettings(patch);
+  if (!result.ok) {
+    if (result.errorKey === "portInUse") {
+      window.alert(t("portInUse", { port: result.port || portInput.value }));
+    } else if (result.error) {
+      window.alert(result.error);
+    }
+  }
+  if (result.state) applyState(result.state);
+}
+
 startBtn.addEventListener("click", async () => {
   const result = await window.pz.startServer();
   if (!result.ok) {
     let message = result.error || t("cannotStart");
     if (result.errorKey === "cannotStartPaths") message = t("cannotStartPaths");
+    if (result.errorKey === "noModsEnabled") message = t("noModsEnabled");
     if (result.errorKey === "portInUse") message = t("portInUse", { port: result.port || 8080 });
     window.alert(message);
     if (result.errorKey === "cannotStartPaths") {
@@ -209,6 +294,32 @@ langSelect.addEventListener("change", async () => {
   setLanguage(langSelect.value);
   await window.pz.setLanguage(lang);
 });
+
+ipSelect.addEventListener("change", () => {
+  pushSettings({ selectedIp: ipSelect.value });
+});
+
+portInput.addEventListener("change", () => {
+  const port = Number(portInput.value);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    window.alert(t("invalidPort"));
+    if (lastState) portInput.value = String(lastState.port || 8080);
+    return;
+  }
+  pushSettings({ port });
+});
+
+function syncModToggles() {
+  pushSettings({
+    enabledMods: {
+      map: modMap.checked,
+      pulse: modPulse.checked,
+    },
+  });
+}
+
+modMap.addEventListener("change", syncModToggles);
+modPulse.addEventListener("change", syncModToggles);
 
 document.querySelectorAll(".copy-btn").forEach((btn) => {
   btn.addEventListener("click", async () => {
@@ -244,8 +355,40 @@ document.querySelectorAll(".toggle-url-btn").forEach((btn) => {
   setInterval(async () => {
     try {
       const status = await window.pz.pollStatus();
-      renderDevices(status.devices || [], status.activeSeconds || 15);
+      if (lastState) {
+        lastState.devices = status.devices || [];
+        lastState.availableIps = status.availableIps || lastState.availableIps;
+        lastState.localIp = status.selectedIp || lastState.localIp;
+        lastState.port = status.port || lastState.port;
+      }
+      if (!applyingSettings && status.availableIps) {
+        const current = ipSelect.value;
+        const editingIp = document.activeElement === ipSelect;
+        if (!editingIp) {
+          applyingSettings = true;
+          ipSelect.innerHTML = "";
+          for (const ip of status.availableIps) {
+            const opt = document.createElement("option");
+            opt.value = ip;
+            opt.textContent = ip;
+            ipSelect.appendChild(opt);
+          }
+          ipSelect.value = status.selectedIp || current || status.availableIps[0] || "";
+          applyingSettings = false;
+        }
+      }
+      const nickEditing = document.activeElement && document.activeElement.closest(".device-nick");
+      if (!nickEditing) {
+        renderDevices(status.devices || [], status.activeSeconds || 15);
+      }
       setRunning(Boolean(status.running));
+      if (lastState) {
+        metaLabel.textContent = t("meta", {
+          ip: status.selectedIp || lastState.localIp,
+          port: status.port || lastState.port,
+          profile: lastState.profile,
+        });
+      }
     } catch {
       // ignore
     }

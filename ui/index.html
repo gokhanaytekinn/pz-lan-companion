@@ -8,19 +8,23 @@
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>PZ Companion</title>
+    <link rel="icon" href="../assets/icon.png" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <header class="header">
       <div class="title-row">
-        <h1>PZ Companion</h1>
+        <div class="brand">
+          <img class="brand-icon" src="../assets/icon.png" alt="" width="36" height="36" />
+          <h1>PZ Companion</h1>
+        </div>
         <div class="title-actions">
           <label class="lang-label" for="langSelect" data-i18n="language">Language</label>
           <select id="langSelect" class="lang-select" aria-label="Language">
             <option value="en">English</option>
             <option value="tr">Türkçe</option>
           </select>
-          <span id="statusPill" class="pill stopped" data-i18n-running="statusRunning" data-i18n-stopped="statusStopped">STOPPED</span>
+          <span id="statusPill" class="pill stopped">STOPPED</span>
         </div>
       </div>
       <p id="metaLabel" class="meta"></p>
@@ -34,9 +38,36 @@
       <button id="folderBtn" class="btn ghost" type="button" data-i18n="chooseFolder">Choose Steam Folder…</button>
     </div>
 
+    <div class="settings">
+      <label class="field">
+        <span data-i18n="networkIp">IP</span>
+        <select id="ipSelect" class="field-control"></select>
+      </label>
+      <label class="field">
+        <span data-i18n="networkPort">Port</span>
+        <input id="portInput" class="field-control" type="number" min="1" max="65535" step="1" />
+      </label>
+      <div class="field mods-field">
+        <span data-i18n="enabledMods">Broadcast</span>
+        <div class="mod-toggles">
+          <label class="check">
+            <input id="modMap" type="checkbox" checked />
+            <span>PZ Map</span>
+          </label>
+          <label class="check">
+            <input id="modPulse" type="checkbox" checked />
+            <span>PZ Pulse</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
     <main class="body">
       <section class="panel" data-mod="map">
-        <h2>PZ Map</h2>
+        <div class="panel-head">
+          <h2>PZ Map</h2>
+          <span class="mod-badge" data-enabled-badge="map"></span>
+        </div>
         <img class="qr" alt="PZ Map QR" hidden />
         <p class="qr-fallback" data-i18n="noQr">No QR</p>
         <p class="mod-status"></p>
@@ -48,7 +79,10 @@
       </section>
 
       <section class="panel" data-mod="pulse">
-        <h2>PZ Pulse</h2>
+        <div class="panel-head">
+          <h2>PZ Pulse</h2>
+          <span class="mod-badge" data-enabled-badge="pulse"></span>
+        </div>
         <img class="qr" alt="PZ Pulse QR" hidden />
         <p class="qr-fallback" data-i18n="noQr">No QR</p>
         <p class="mod-status"></p>

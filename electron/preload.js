@@ -7,8 +7,10 @@ contextBridge.exposeInMainWorld("pz", {
   startServer: () => ipcRenderer.invoke("start-server"),
   stopServer: () => ipcRenderer.invoke("stop-server"),
   chooseFolder: () => ipcRenderer.invoke("choose-folder"),
-  getDevices: () => ipcRenderer.invoke("get-devices"),
   pollStatus: () => ipcRenderer.invoke("poll-status"),
   getLanguagePrefs: () => ipcRenderer.invoke("get-language-prefs"),
   setLanguage: (language) => ipcRenderer.invoke("set-language", language),
+  updateSettings: (patch) => ipcRenderer.invoke("update-settings", patch),
+  setDeviceNickname: (ip, nickname) =>
+    ipcRenderer.invoke("set-device-nickname", { ip, nickname }),
 });

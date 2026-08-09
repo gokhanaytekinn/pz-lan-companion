@@ -1,39 +1,10 @@
 # PZ Companion
 
-Desktop companion for **Project Zomboid** mods **PZ Map** and **PZ Pulse**.  
-It broadcasts the mod web UIs and live Lua data over your local Wi‑Fi so you can open them on a phone or tablet via QR code.
+Desktop companion for **Project Zomboid** mods **[PZ Map](https://steamcommunity.com/sharedfiles/filedetails/?id=3770149036)** and **[PZ Pulse](https://steamcommunity.com/sharedfiles/filedetails/?id=3753700423)**.
 
-Built with **Electron** (Windows portable build).
+It serves the mod web UIs and live Lua data on your local Wi‑Fi so you can open them on a phone or tablet via QR code.
 
-## Download (recommended)
-
-1. Open the [**Releases**](../../releases) page
-2. Download **`PZ_Companion-portable.exe`** (or the `.zip`)
-3. Run **`PZ_Companion-portable.exe`** (or extract the zip and run **PZ Companion.exe**)
-4. Press **Start Server** and scan a QR code
-
-No installer. No Python required.
-
-> Windows may still warn about an unsigned app (SmartScreen / Smart App Control). Prefer **More info → Run anyway** when available. If Smart App Control hard-blocks the file, run from source with Node below.
-
-## Requirements
-
-- Windows PC running Project Zomboid
-- [PZ Map](https://steamcommunity.com/sharedfiles/filedetails/?id=3770149036) and [PZ Pulse](https://steamcommunity.com/sharedfiles/filedetails/?id=3753700423) subscribed in Steam Workshop
-- Phone/tablet on the **same Wi‑Fi** as the PC
-- Allow local network access on port **8080** (Windows Firewall prompt)
-
-## How to use
-
-1. Start Project Zomboid with the mods enabled (so data folders are written)
-2. Open **PZ Companion**
-3. Confirm Steam / workshop paths were found (or choose the folder when prompted)
-4. Click **Start Server**
-5. Scan **PZ Map** or **PZ Pulse** QR with your phone
-6. Watch **Active devices** for connected clients
-7. Click **Stop Server** when finished
-
-## Run from source
+## Run (terminal only)
 
 Requires [Node.js](https://nodejs.org/) 20+.
 
@@ -42,42 +13,55 @@ npm install
 npm start
 ```
 
-## Build portable locally
+Or:
 
 ```bat
-npm install
-npm run dist
+.\start.bat
 ```
 
-Artifacts land in `release\`:
+There is no portable exe / GitHub Actions release build in this project. Use the terminal commands above.
 
-- `PZ_Companion-portable.exe`
-- `PZ_Companion-portable.zip`
+## Requirements
 
-Local builds unpack Electron under `%TEMP%\pz-lan-companion-release` first, then copy only the exe/zip into `release\` (avoids Cursor locking `app.asar` mid-build).
+- Windows PC running Project Zomboid
+- PZ Map and/or PZ Pulse subscribed in Steam Workshop
+- Phone/tablet on the **same Wi‑Fi** as the PC
+- Allow local network access on the chosen port (default **8080**)
 
-## Publishing a GitHub Release
+## Features
 
-```bash
-git tag v1.0.1
-git push origin v1.0.1
-```
+- Start / stop LAN server
+- **IP selector** (multi-adapter / VPN friendly)
+- **Port setting**
+- **Per-mod broadcast** (enable Map and/or Pulse)
+- QR codes + copy URL (URLs hidden by default)
+- Active devices with **nicknames**
+- Turkish / English UI (follows system language when possible)
+- Steam workshop auto-detect + manual folder picker
 
-GitHub Actions builds the portable Electron artifacts and attaches them to the release.
+## How to use
+
+1. Start Project Zomboid with the mods enabled (so `Zomboid\Lua\PZ_*` data folders exist)
+2. Run `npm start`
+3. Confirm Steam / workshop paths (or choose the folder when prompted)
+4. Pick IP / port and enable the mods you want
+5. Click **Start Server**
+6. Scan a QR code on your phone
+7. Click **Stop Server** when finished
 
 ## Steam folder detection
 
-The app tries to find Steam libraries via:
+The app looks for Steam libraries via:
 
 - Windows registry
 - `libraryfolders.vdf`
 - Common install locations
 
-If mods are missing, use **Choose Steam Folder…** and select your `steamapps` folder (or `workshop\content\108600`). The choice is saved under `%APPDATA%\PZCompanion\config.json`.
+If mods are missing, use **Choose Steam Folder…** and select your `steamapps` folder (or `workshop\content\108600`). Settings are saved under `%APPDATA%\PZCompanion\config.json` (language, IP, port, enabled mods, device nicknames, manual path).
 
 ## Security
 
-While the server is **Start**ed, devices on the same LAN can read only these mounts:
+While the server is **Start**ed, devices on the same LAN can read only these mounts (for enabled mods):
 
 | URL | Content |
 |-----|---------|
@@ -95,9 +79,9 @@ There is no password; do not use on untrusted public Wi‑Fi.
 |---------|-----|
 | QR opens but data 404 | Start the game with the mod so `Zomboid\Lua\PZ_*` exists |
 | Workshop not found | Use **Choose Steam Folder…** |
-| Phone cannot connect | Same Wi‑Fi, allow firewall port 8080, press Start |
-| Port in use | Stop another PZ Companion / process using 8080 |
-| Exe blocked | `npm start` from source, or allow the app in Windows Security |
+| Phone cannot connect | Same Wi‑Fi, allow firewall for the selected port, press Start |
+| Port in use | Change port in the UI, or stop the other process |
+| Wrong QR / unreachable | Pick the correct LAN IP from the IP selector |
 
 ## License
 
